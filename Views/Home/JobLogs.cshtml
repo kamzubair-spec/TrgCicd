@@ -1,0 +1,72 @@
+@model CICDTrg.Models.DeploymentJob
+@{
+    ViewData["Title"] = "Job Logs";
+}
+
+<div class="header">
+    <div class="title">
+        <a href="/Home/PipelineLogs/@Model.OrgConfigurationId" style="color: var(--primary); text-decoration: none; margin-bottom: 8px; display: inline-block;">&larr; Back to History</a>
+        <h1>Deployment Logs: #@Model.Id</h1>
+        <p>Pipeline: <strong>@Model.OrgConfigurationName</strong> | Status: @Model.Status</p>
+    </div>
+</div>
+
+<div style="background: #000; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; overflow-x: auto;">
+    <pre id="logContainer" style="color: #0f0; font-family: monospace; font-size: 13px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">@Model.LogOutput</pre>
+    
+    @if(Model.Status == "Running" || Model.Status == "Queued")
+    {
+        <div id="liveIndicator" style="margin-top: 20px; color: var(--warning); display:flex; align-items:center; gap: 8px;">
+            <div style="width:16px; height:16px; border: 2px solid var(--warning); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <span>Deployment is running. Streaming live logs from console...</span>
+        </div>
+        <style>
+            @@keyframes spin { 100% { transform: rotate(360deg); } }
+        </style>
+        
+        <script>
+            // Live console streaming via AJAX
+            let logCheckInterval = setInterval(async function() {
+                try {
+                    const response = await fetch(window.location.href);
+                    const html = await response.text();
+                    
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    const newLogText = doc.getElementById('logContainer').textContent;
+                    const logContainer = document.getElementById('logContainer');
+                    
+                    // Check if we are scrolled to the bottom
+                    const isAtBottom = (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50;
+                    
+                    // Update text content
+                    if (logContainer.textContent !== newLogText) {
+                        logContainer.textContent = newLogText;
+                    }
+                    
+                    if (isAtBottom) {
+                        window.scrollTo(0, document.body.scrollHeight);
+                    }
+                    
+                    // Stop polling if the job finished
+                    const liveIndicator = doc.getElementById('liveIndicator');
+                    if (!liveIndicator) {
+                        clearInterval(logCheckInterval);
+                        document.getElementById('liveIndicator').style.display = 'none';
+                        document.getElementById('liveIndicator').insertAdjacentHTML('afterend', '<div style="margin-top: 20px; color: var(--success); display:flex; align-items:center; gap: 8px;"><span>✓ Deployment Finished</span></div>');
+                    }
+                } catch (e) {
+                    console.error("Live stream error", e);
+                }
+            }, 1000); // 1 second live updates
+        </script>
+    }
+</div>
+
+<script>
+    // Scroll to bottom on initial load
+    window.onload = function() {
+        window.scrollTo(0, document.body.scrollHeight);
+    };
+</script>

@@ -1,0 +1,68 @@
+@model List<CICDTrg.Models.DeploymentJob>
+@{
+    ViewData["Title"] = "Pipeline Logs";
+}
+
+<div class="header">
+    <div class="title">
+        <a href="/" style="color: var(--primary); text-decoration: none; margin-bottom: 8px; display: inline-block;">&larr; Back to Dashboard</a>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <h1>Deployment History</h1>
+                <p>Viewing all deployment runs for <strong>@ViewBag.PipelineName</strong></p>
+            </div>
+            @if(Model.Any())
+            {
+                <form action="/Home/ClearPipelineLogs/@ViewBag.PipelineId" method="post" onsubmit="return confirm('Are you sure you want to delete ALL deployment logs for this pipeline?');">
+                    <button type="submit" class="btn btn-danger" style="background: #ef4444;">Clear All Logs</button>
+                </form>
+            }
+        </div>
+    </div>
+</div>
+
+<div style="background: var(--panel-bg); border-radius: 16px; border: 1px solid var(--border-color); overflow: hidden;">
+    <table class="jobs-table">
+        <thead>
+            <tr>
+                <th>Job ID</th>
+                <th>Status</th>
+                <th>Started</th>
+                <th>Completed</th>
+                <th>Branch</th>
+                <th>Triggered By</th>
+                <th style="width: 1%; white-space: nowrap;">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach(var job in Model)
+            {
+                <tr>
+                    <td>#@job.Id</td>
+                    <td>
+                        @{
+                            string statusClass = "status-badge ";
+                            if (job.Status == "Success") statusClass += "status-success";
+                            else if (job.Status == "Failed") statusClass += "status-failed";
+                            else statusClass += "status-running";
+                        }
+                        <span class="@statusClass">@job.Status</span>
+                    </td>
+                    <td>@job.StartTime.ToString("g")</td>
+                    <td>@(job.EndTime.HasValue ? job.EndTime.Value.ToString("g") : "-")</td>
+                    <td><span class="branch-tag">@job.SourceBranch</span></td>
+                    <td>@job.TriggeredBy</td>
+                    <td style="white-space: nowrap; display: flex; gap: 8px;">
+                        <a href="/Home/JobLogs/@job.Id" class="btn" style="padding: 6px 12px; font-size: 13px; text-decoration:none; color: white;">View Full Logs</a>
+                        <form action="/Home/DeleteJobLog/@job.Id" method="post" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this log?');">
+                            <button type="submit" class="btn btn-danger" style="padding: 6px 12px; font-size: 13px; background: #ef4444; color: white; border: none; cursor: pointer;">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+            @if(!Model.Any()) {
+                <tr><td colspan="7" style="text-align:center;">No deployments have been run for this pipeline yet.</td></tr>
+            }
+        </tbody>
+    </table>
+</div>

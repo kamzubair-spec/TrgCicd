@@ -1,0 +1,73 @@
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Login - DeployHub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/site.css" />
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #0f111a;
+            margin: 0;
+            font-family: 'Inter', sans-serif;
+        }
+        .login-box {
+            background: #171a23;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            width: 100%;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .login-box h1 {
+            color: white;
+            margin-top: 0;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .login-box input {
+            width: 100%;
+            background: rgba(15,17,26,0.8);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            padding: 14px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-sizing: border-box;
+        }
+        .login-box .btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 16px;
+        }
+        .error-msg {
+            color: var(--danger);
+            margin-bottom: 15px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-box">
+        <h1>DeployHub</h1>
+        @if (ViewBag.Error != null)
+        {
+            <div class="error-msg">@ViewBag.Error</div>
+        }
+        <form asp-controller="Account" asp-action="Login" method="post">
+            <input type="text" name="username" placeholder="Username" required />
+            <input type="password" name="password" placeholder="Password" required />
+            <button type="submit" class="btn">Log In</button>
+        </form>
+    </div>
+</body>
+</html>

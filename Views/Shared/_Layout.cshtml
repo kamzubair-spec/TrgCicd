@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - DeployHub</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <div class="logo-icon">sf</div>
+            DeployHub
+        </div>
+        <a href="/" class="nav-item">Dashboard</a>
+        <a href="/OrgConfiguration" class="nav-item">Pipeline Configurations</a>
+        <div style="flex:1"></div>
+        <a href="/Settings" class="nav-item">Settings</a>
+        <a href="/Account/Logout" class="nav-item" style="color: var(--danger); margin-top: 10px;">Logout (@User.Identity?.Name)</a>
+    </div>
+
+    <div class="main-content">
+        @RenderBody()
+    </div>
+
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

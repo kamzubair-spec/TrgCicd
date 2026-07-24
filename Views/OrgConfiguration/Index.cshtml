@@ -1,0 +1,163 @@
+@model List<CICDTrg.Models.OrgConfiguration>
+@{
+    ViewData["Title"] = "Org Pipelines";
+}
+
+<div class="header">
+    <div class="title">
+        <h1>Pipeline Configurations</h1>
+        <p>Define unified Org Deployment Pipelines linking Repositories, Environments, and Test Strategies.</p>
+    </div>
+</div>
+
+<form asp-controller="OrgConfiguration" asp-action="Create" method="post" autocomplete="off" class="deploy-panel" style="margin-bottom: 40px; display: flex; flex-direction: column; gap: 20px; align-items: stretch;">
+    
+    <!-- General -->
+    <div class="form-group">
+        <label>Pipeline Name</label>
+        <input type="text" name="Name" placeholder="e.g. UAT Validation Pipeline" required style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+    </div>
+
+    <!-- Salesforce Settings -->
+    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color);">
+        <h3 style="margin-top:0; margin-bottom: 20px; font-size: 16px; color: var(--primary);">1. Target Org Settings</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label>Org Type</label>
+                <select name="OrgType" style="width:100%;">
+                    <option value="Sandbox">Sandbox</option>
+                    <option value="Production">Production</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Instance URL</label>
+                <input type="url" name="InstanceUrl" placeholder="https://test.salesforce.com" required style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+            </div>
+            <div class="form-group">
+                <label>Username</label>
+                <input type="email" name="Username" placeholder="s.zubair@org.com (Optional for Client Credentials)" autocomplete="off" style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+            </div>
+            
+            <div class="form-group">
+                <label>Authentication Method</label>
+                <select name="AuthMethod" style="width:100%;">
+                    <option value="ClientCredentials">Client Credentials (Consumer Secret)</option>
+                    <option value="JWT">JWT Bearer (Private .key File)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Consumer Key (Client ID)</label>
+                <input type="text" name="ClientId" required style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+            </div>
+            <div class="form-group">
+                <label>Consumer Secret / Key File Path</label>
+                <input type="password" name="EncryptedClientSecret" placeholder="Encrypted on save" autocomplete="new-password" style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+                <small style="color: var(--text-muted);">For JWT, enter the full path to the .key file instead.</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bitbucket Settings -->
+    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 8px; border: 1px solid var(--border-color);">
+        <h3 style="margin-top:0; margin-bottom: 20px; font-size: 16px; color: var(--success);">2. Source & Deployment Strategy</h3>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div class="form-group">
+                <label>Repository URL (HTTPS or SSH)</label>
+                <input type="text" name="RepoUrl" placeholder="https://... or git@@..." required style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+            </div>
+            <div class="form-group">
+                <label>Source Branch to Pull</label>
+                <input type="text" name="SourceBranch" placeholder="e.g. main, uat, feature/xyz" required style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+            </div>
+            <div class="form-group">
+                <label>Repo Username</label>
+                <input type="text" name="EncryptedRepoUsername" autocomplete="new-password" placeholder="(Leave blank for SSH)" style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+            </div>
+            <div class="form-group">
+                <label>Repo App Password</label>
+                <input type="password" name="EncryptedRepoAppPassword" autocomplete="new-password" placeholder="(Leave blank for SSH)" style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+            </div>
+            
+            <div class="form-group" style="grid-column: span 2;">
+                <label>SSH Private Key Content</label>
+                <textarea name="EncryptedSshKeyContent" placeholder="-----BEGIN OPENSSH PRIVATE KEY-----&#10;...&#10;-----END OPENSSH PRIVATE KEY-----" rows="4" style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px; font-family: monospace;"></textarea>
+                <small style="color: var(--text-muted);">Encrypted on save. Will be dynamically injected during git clone.</small>
+            </div>
+
+            <div class="form-group" style="margin-top:20px;">
+                <label>Deployment Strategy</label>
+                <div style="display:flex; gap: 10px; align-items: center; margin-top:10px;">
+                    <input type="checkbox" name="IsCheckOnly" value="true" />
+                    <span style="color: white; font-size: 14px;">Validate Only (Check Only)</span>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Test Level</label>
+                <select name="TestLevel" style="width:100%;">
+                    <option value="NoTestRun">No Test Run</option>
+                    <option value="RunLocalTests">Run Local Tests</option>
+                    <option value="RunAllTestsInOrg">Run All Tests In Org</option>
+                    <option value="RunSpecifiedTests">Run Specified Tests</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>Specified Tests (Comma Separated)</label>
+                <input type="text" name="SpecifiedTestClasses" placeholder="TestClass1,TestClass2" style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+            </div>
+            <div class="form-group">
+                <label>Auto-Merge Target Branch (Post-Deploy)</label>
+                <input type="text" name="AutoMergeTargetBranch" placeholder="e.g. uat (Leave blank to disable)" style="width:100%; background: rgba(15,17,26,0.8); border: 1px solid var(--border-color); color: white; padding: 12px; border-radius: 8px;" />
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group" style="margin-top:10px;">
+        <button type="submit" class="btn" style="width: 100%; padding: 16px; font-size: 16px;">Save Pipeline Configuration</button>
+    </div>
+</form>
+
+<h2 class="section-title">Active Pipelines</h2>
+<table class="jobs-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Org</th>
+            <th>Type</th>
+            <th>Repository</th>
+            <th>Check Only</th>
+            <th>Test Level</th>
+            <th>Auto-Merge</th>
+            <th style="width: 1%; white-space: nowrap;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var config in Model)
+        {
+            <tr>
+                <td><strong>@config.Name</strong></td>
+                <td>@config.Username</td>
+                <td>@config.OrgType</td>
+                <td>
+                    @{
+                        string repoName = config.RepoUrl ?? "Unknown";
+                        if (repoName.Contains("/")) { repoName = repoName.Substring(repoName.LastIndexOf('/') + 1); }
+                    }
+                    <span class="branch-tag" title="@(config.RepoUrl ?? "Unknown")">@repoName</span>
+                </td>
+                <td>@(config.IsCheckOnly ? "Yes" : "No")</td>
+                <td>@config.TestLevel</td>
+                <td>@(string.IsNullOrEmpty(config.AutoMergeTargetBranch) ? "None" : config.AutoMergeTargetBranch)</td>
+                <td style="white-space: nowrap; display: flex; gap: 8px;">
+                    <a href="/OrgConfiguration/Edit/@config.Id" class="btn" style="background: var(--warning); padding: 6px 12px; text-decoration: none; color: white;">Edit</a>
+                    <form asp-action="Delete" asp-route-id="@config.Id" method="post" onsubmit="return confirm('Delete this pipeline?');">
+                        <button type="submit" class="btn" style="background: var(--danger); padding: 6px 12px;">Delete</button>
+                    </form>
+                </td>
+            </tr>
+        }
+        @if (!Model.Any())
+        {
+            <tr><td colspan="7" style="text-align:center;">No pipelines configured yet.</td></tr>
+        }
+    </tbody>
+</table>

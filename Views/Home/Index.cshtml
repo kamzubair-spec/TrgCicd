@@ -1,0 +1,56 @@
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+<div class="header">
+    <div class="title">
+        <h1>Deployment Dashboard</h1>
+        <p>Manage and track your Salesforce sandbox and production deployments</p>
+    </div>
+</div>
+
+<h2 class="section-title">Active Pipelines</h2>
+<table class="jobs-table">
+    <thead>
+        <tr>
+            <th>Pipeline Name</th>
+            <th>Target Org</th>
+            <th>Source Branch</th>
+            <th>Test Strategy</th>
+            <th style="width: 1%; white-space: nowrap;">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach(var pipeline in ViewBag.Pipelines)
+        {
+            <tr>
+                <td><strong>@pipeline.Name</strong></td>
+                <td>@pipeline.Username</td>
+                <td><span class="branch-tag">@pipeline.SourceBranch</span></td>
+                <td>@pipeline.TestLevel</td>
+                <td style="white-space: nowrap; overflow: visible;">
+                    <div class="dropdown">
+                        <button class="btn" style="padding: 6px 12px; font-size: 13px; display:flex; align-items:center; gap:6px;">Actions <span style="font-size:10px;">▼</span></button>
+                        <div class="dropdown-menu">
+                            <form asp-controller="Home" asp-action="Deploy" method="post">
+                                <input type="hidden" name="orgConfigurationId" value="@pipeline.Id" />
+                                <button type="submit">▶ Run Deployment</button>
+                            </form>
+                            <button type="button" onclick="alert('Stop functionality coming soon!');">⏹ Stop Deployment</button>
+                            <a href="/Home/PipelineLogs/@pipeline.Id" style="color:var(--primary);">📋 View Logs / History</a>
+                            <a href="/OrgConfiguration/Edit/@pipeline.Id" style="color:var(--warning);">⚙️ Edit Pipeline</a>
+                            <form asp-controller="OrgConfiguration" asp-action="Delete" asp-route-id="@pipeline.Id" method="post" onsubmit="return confirm('Delete this pipeline?');">
+                                <button type="submit" class="text-danger">🗑️ Delete Pipeline</button>
+                            </form>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        }
+        @if(Enumerable.Count(ViewBag.Pipelines) == 0) {
+            <tr>
+                <td colspan="5" style="text-align:center;">No pipelines configured. Head over to Pipeline Configurations to add one!</td>
+            </tr>
+        }
+    </tbody>
+</table>
