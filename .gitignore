@@ -115,7 +115,6 @@ x86/
 # Publish Web Output
 *.[Pp]ublish.xml
 
-# SQLite Database files
-*.db
+# SQLite temporary files (preventing push to GitHub)
 *.db-shm
 *.db-wal
