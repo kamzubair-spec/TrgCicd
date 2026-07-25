@@ -3,70 +3,196 @@
     ViewData["Title"] = "Job Logs";
 }
 
+<style>
+    body { background-color: #0d0f12; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .header { padding-bottom: 20px; border-bottom: 1px solid #1f2228; margin-bottom: 30px; }
+    .header h1 { font-size: 1.5rem; margin-bottom: 5px; }
+    
+    .deploy-container { max-width: 900px; margin: 0 auto; }
+    .deploy-title { text-align: center; margin-bottom: 24px; font-weight: 500; font-size: 1.25rem; letter-spacing: 0.5px; }
+    
+    .step-card { 
+        background-color: #1e2127; 
+        border-radius: 10px; 
+        margin-bottom: 16px; 
+        position: relative; 
+        overflow: hidden;
+        border: 1px solid #2a2e35;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .step-content {
+        padding: 18px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .step-name { font-size: 1.05rem; color: #e5e7eb; font-weight: 500; }
+    .step-detail { font-size: 0.85rem; color: #9ca3af; margin-left: 12px; font-family: monospace; }
+    
+    .step-pill {
+        background-color: #2a2e35;
+        color: #9ca3af;
+        padding: 5px 14px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 1px;
+        display: flex;
+        align-items: center;
+        border: 1px solid #374151;
+    }
+    
+    .step-pill.running { background-color: rgba(59, 130, 246, 0.2); color: #60a5fa; border-color: rgba(59, 130, 246, 0.4); }
+    .step-pill.done { background-color: rgba(16, 185, 129, 0.15); color: #34d399; border-color: rgba(16, 185, 129, 0.3); }
+    .step-pill.failed { background-color: rgba(239, 68, 68, 0.15); color: #f87171; border-color: rgba(239, 68, 68, 0.3); }
+
+    .progress-bar-container { height: 6px; background-color: #111827; width: 100%; position: absolute; bottom: 0; left: 0; }
+    .progress-bar { height: 100%; background-color: #4f46e5; width: 0%; transition: width 0.4s ease; border-radius: 0 4px 4px 0; }
+    .progress-bar.done { background-color: #10b981; }
+    .progress-bar.failed { background-color: #ef4444; }
+    
+    .spinner { display: inline-block; width: 12px; height: 12px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite; margin-right: 8px; }
+    @@keyframes spin { 100% { transform: rotate(360deg); } }
+    
+    .legacy-log { background: #000; color: #a8b2c1; padding: 15px; border-radius: 8px; font-family: monospace; font-size: 13px; margin-top: 40px; overflow-x: auto; white-space: pre-wrap; display: none; }
+</style>
+
 <div class="header">
-    <div class="title">
-        <a href="/Home/PipelineLogs/@Model.OrgConfigurationId" style="color: var(--primary); text-decoration: none; margin-bottom: 8px; display: inline-block;">&larr; Back to History</a>
-        <h1>Deployment Logs: #@Model.Id</h1>
-        <p>Pipeline: <strong>@Model.OrgConfigurationName</strong> | Status: @Model.Status</p>
-    </div>
+    <a href="/Home/PipelineLogs/@Model.OrgConfigurationId" style="color: #60a5fa; text-decoration: none; margin-bottom: 12px; display: inline-block;">&larr; Back to History</a>
+    <h1>Deployment #@Model.Id: @Model.OrgConfigurationName</h1>
 </div>
 
-<div style="background: #000; border: 1px solid var(--border-color); border-radius: 8px; padding: 20px; overflow-x: auto;">
-    <pre id="logContainer" style="color: #0f0; font-family: monospace; font-size: 13px; margin: 0; white-space: pre-wrap; word-wrap: break-word;">@Model.LogOutput</pre>
+<div id="raw-json-data" style="display:none;">@Model.LogOutput</div>
+
+<div class="deploy-container" id="ui-container">
+    <div class="deploy-title">Deployment Started</div>
     
-    @if(Model.Status == "Running" || Model.Status == "Queued")
-    {
-        <div id="liveIndicator" style="margin-top: 20px; color: var(--warning); display:flex; align-items:center; gap: 8px;">
-            <div style="width:16px; height:16px; border: 2px solid var(--warning); border-top-color: transparent; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <span>Deployment is running. Streaming live logs from console...</span>
+    <div class="step-card">
+        <div class="step-content">
+            <div>
+                <span class="step-name" id="step1-title">STEP 1: Retrieving files to be deployed</span>
+                <span class="step-detail" id="step1-detail"></span>
+            </div>
+            <div class="step-pill" id="step1-pill">PENDING</div>
         </div>
-        <style>
-            @@keyframes spin { 100% { transform: rotate(360deg); } }
-        </style>
-        
-        <script>
-            // Live console streaming via AJAX
-            let logCheckInterval = setInterval(async function() {
-                try {
-                    const response = await fetch(window.location.href);
-                    const html = await response.text();
-                    
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    
-                    const newLogText = doc.getElementById('logContainer').textContent;
-                    const logContainer = document.getElementById('logContainer');
-                    
-                    // Check if we are scrolled to the bottom
-                    const isAtBottom = (window.innerHeight + window.scrollY) >= document.body.offsetHeight - 50;
-                    
-                    // Update text content
-                    if (logContainer.textContent !== newLogText) {
-                        logContainer.textContent = newLogText;
-                    }
-                    
-                    if (isAtBottom) {
-                        window.scrollTo(0, document.body.scrollHeight);
-                    }
-                    
-                    // Stop polling if the job finished
-                    const liveIndicator = doc.getElementById('liveIndicator');
-                    if (!liveIndicator) {
-                        clearInterval(logCheckInterval);
-                        document.getElementById('liveIndicator').style.display = 'none';
-                        document.getElementById('liveIndicator').insertAdjacentHTML('afterend', '<div style="margin-top: 20px; color: var(--success); display:flex; align-items:center; gap: 8px;"><span>✓ Deployment Finished</span></div>');
-                    }
-                } catch (e) {
-                    console.error("Live stream error", e);
-                }
-            }, 1000); // 1 second live updates
-        </script>
-    }
+        <div class="progress-bar-container"><div class="progress-bar" id="step1-progress"></div></div>
+    </div>
+    
+    <div class="step-card">
+        <div class="step-content">
+            <div>
+                <span class="step-name" id="step2-title">STEP 2: Deploying to Salesforce</span>
+                <span class="step-detail" id="step2-detail"></span>
+            </div>
+            <div class="step-pill" id="step2-pill">PENDING</div>
+        </div>
+        <div class="progress-bar-container"><div class="progress-bar" id="step2-progress"></div></div>
+    </div>
+    
+    <div class="step-card">
+        <div class="step-content">
+            <div>
+                <span class="step-name" id="step3-title">STEP 3: Updating environmental branch</span>
+                <span class="step-detail" id="step3-detail"></span>
+            </div>
+            <div class="step-pill" id="step3-pill">PENDING</div>
+        </div>
+        <div class="progress-bar-container"><div class="progress-bar" id="step3-progress"></div></div>
+    </div>
+    
+    <div class="deploy-title" id="deploy-finished" style="display: none; margin-top: 30px;">Deployment Finished</div>
+    
+    <div class="legacy-log" id="legacy-log"></div>
 </div>
 
 <script>
-    // Scroll to bottom on initial load
-    window.onload = function() {
-        window.scrollTo(0, document.body.scrollHeight);
-    };
+    function updateUI(state) {
+        if (!state) return;
+        
+        if (typeof state !== 'object') {
+            document.getElementById('legacy-log').style.display = 'block';
+            document.getElementById('legacy-log').innerHTML = state;
+            return;
+        }
+        
+        ['Step1', 'Step2', 'Step3'].forEach((step, idx) => {
+            const data = state[step];
+            const num = idx + 1;
+            if (!data) return;
+            
+            document.getElementById(`step${num}-title`).innerText = data.Title || `STEP ${num}`;
+            document.getElementById(`step${num}-detail`).innerText = data.DetailText || '';
+            
+            const progressEl = document.getElementById(`step${num}-progress`);
+            progressEl.style.width = (data.ProgressPercent || 0) + '%';
+            progressEl.className = 'progress-bar';
+            
+            const pill = document.getElementById(`step${num}-pill`);
+            pill.className = 'step-pill';
+            
+            let statusText = data.Status || 'PENDING';
+            if (statusText === 'RUNNING') {
+                pill.classList.add('running');
+                pill.innerHTML = '<span class="spinner"></span> RUNNING';
+            } else if (statusText === 'DONE') {
+                pill.classList.add('done');
+                pill.innerHTML = 'DONE';
+                progressEl.classList.add('done');
+                progressEl.style.width = '100%';
+            } else if (statusText === 'FAILED') {
+                pill.classList.add('failed');
+                pill.innerHTML = 'FAILED';
+                progressEl.classList.add('failed');
+            } else {
+                pill.innerHTML = 'PENDING';
+            }
+        });
+        
+        if (state.Finished) {
+            const finishedEl = document.getElementById('deploy-finished');
+            finishedEl.style.display = 'block';
+            finishedEl.innerText = state.Success ? 'Deployment Finished Successfully' : ('Deployment Failed: ' + (state.ErrorMessage || ''));
+            finishedEl.style.color = state.Success ? '#34d399' : '#f87171';
+        }
+    }
+
+    function parseData(rawData) {
+        if (!rawData) return null;
+        try {
+            if (rawData.trim().startsWith('{')) return JSON.parse(rawData);
+            return rawData;
+        } catch(e) { 
+            return rawData;
+        }
+    }
+
+    const initialDataElement = document.getElementById('raw-json-data');
+    if (initialDataElement) {
+        updateUI(parseData(initialDataElement.innerText));
+    }
+
+    @if(Model.Status == "Running" || Model.Status == "Queued")
+    {
+        <text>
+        let pollTimer = setInterval(async () => {
+            try {
+                const res = await fetch(window.location.href);
+                const html = await res.text();
+                const doc = new DOMParser().parseFromString(html, 'text/html');
+                
+                const newDataElement = doc.getElementById('raw-json-data');
+                if (newDataElement) {
+                    const state = parseData(newDataElement.innerText);
+                    updateUI(state);
+                    
+                    if (state && typeof state === 'object' && state.Finished) {
+                        clearInterval(pollTimer);
+                    }
+                }
+            } catch(e) { console.error("Poll error", e); }
+        }, 1000);
+        </text>
+    }
 </script>
