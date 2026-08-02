@@ -23,6 +23,8 @@ namespace CICDTrg.Services
             public bool Success { get; set; }
             public string ErrorMessage { get; set; }
             public List<string> DebugLogs { get; set; } = new List<string>();
+            public List<string> ComponentLogs { get; set; } = new List<string>();
+            public List<string> ComponentSummaryLogs { get; set; } = new List<string>();
         }
 
         private class StepState
@@ -74,6 +76,13 @@ namespace CICDTrg.Services
 
             var job = await db.DeploymentJobs.FindAsync(jobId);
             if (job == null) return;
+
+            // Prevent Hangfire from running the same job twice or wiping logs on retry
+            if (job.Status != "Queued")
+            {
+                _logger.LogInformation($"Job {jobId} is already {job.Status}. Skipping execution to prevent log wipe.");
+                return;
+            }
 
             job.Status = "Running";
             _state.Step1.Status = "RUNNING";
@@ -237,10 +246,64 @@ namespace CICDTrg.Services
                         int total = resultObj.GetProperty("numberComponentsTotal").GetInt32();
                         
                         string currentFile = "";
-                        if (resultObj.TryGetProperty("details", out var detailsObj) && detailsObj.TryGetProperty("componentSuccesses", out var successes) && successes.GetArrayLength() > 0)
+                        if (resultObj.TryGetProperty("details", out var detailsObj))
                         {
-                            var lastSuccess = successes[successes.GetArrayLength() - 1];
-                            currentFile = lastSuccess.GetProperty("fullName").GetString();
+                            var newLogs = new List<string>();
+                            var successCounts = new Dictionary<string, int>();
+                            var errorCounts = new Dictionary<string, int>();
+
+                            if (detailsObj.TryGetProperty("componentSuccesses", out var successes) && successes.ValueKind == JsonValueKind.Array && successes.GetArrayLength() > 0)
+                            {
+                                var lastSuccess = successes[successes.GetArrayLength() - 1];
+                                if (lastSuccess.TryGetProperty("fullName", out var fnP)) currentFile = fnP.GetString();
+                                
+                                foreach (var success in successes.EnumerateArray())
+                                {
+                                    string ct = success.TryGetProperty("componentType", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null ? ctProp.GetString() : "Unknown";
+                                    string fn = success.TryGetProperty("fullName", out var fnProp) && fnProp.ValueKind != JsonValueKind.Null ? fnProp.GetString() : "Unknown";
+                                    if (fn == "package.xml") continue;
+                                    newLogs.Add($"[SUCCESS] {ct} : {fn}");
+
+                                    if (!successCounts.ContainsKey(ct)) successCounts[ct] = 0;
+                                    successCounts[ct]++;
+                                }
+                            }
+                            if (detailsObj.TryGetProperty("componentFailures", out var failures))
+                            {
+                                if (failures.ValueKind == JsonValueKind.Array)
+                                {
+                                    foreach (var failure in failures.EnumerateArray())
+                                    {
+                                        string ct = failure.TryGetProperty("componentType", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null ? ctProp.GetString() : "Unknown";
+                                        string fn = failure.TryGetProperty("fullName", out var fnProp) && fnProp.ValueKind != JsonValueKind.Null ? fnProp.GetString() : "Unknown";
+                                        string prob = failure.TryGetProperty("problem", out var probProp) && probProp.ValueKind != JsonValueKind.Null ? probProp.GetString() : "Unknown";
+                                        newLogs.Add($"[ERROR] {ct} : {fn} - {prob}");
+
+                                        if (!errorCounts.ContainsKey(ct)) errorCounts[ct] = 0;
+                                        errorCounts[ct]++;
+                                    }
+                                }
+                                else if (failures.ValueKind == JsonValueKind.Object)
+                                {
+                                    string ct = failures.TryGetProperty("componentType", out var ctProp) && ctProp.ValueKind != JsonValueKind.Null ? ctProp.GetString() : "Unknown";
+                                    string fn = failures.TryGetProperty("fullName", out var fnProp) && fnProp.ValueKind != JsonValueKind.Null ? fnProp.GetString() : "Unknown";
+                                    string prob = failures.TryGetProperty("problem", out var probProp) && probProp.ValueKind != JsonValueKind.Null ? probProp.GetString() : "Unknown";
+                                    newLogs.Add($"[ERROR] {ct} : {fn} - {prob}");
+
+                                    if (!errorCounts.ContainsKey(ct)) errorCounts[ct] = 0;
+                                    errorCounts[ct]++;
+                                }
+                            }
+                            _state.ComponentLogs = newLogs;
+
+                            var summaryLogs = new List<string>();
+                            foreach (var kv in successCounts) {
+                                summaryLogs.Add($"[{kv.Key}] {kv.Value} deployed");
+                            }
+                            foreach (var kv in errorCounts) {
+                                summaryLogs.Add($"[{kv.Key}] {kv.Value} failed to deploy");
+                            }
+                            _state.ComponentSummaryLogs = summaryLogs;
                         }
                         
                         if (total > 0 && deployed <= total) {
@@ -307,13 +370,24 @@ namespace CICDTrg.Services
                         await RunProcessAsync("git", "config user.email \"deployhub@cicd.local\"", workspacePath, db, job, config);
                         await RunProcessAsync("git", "config user.name \"DeployHub Automation\"", workspacePath, db, job, config);
                         await RunProcessAsync("git", $"checkout {config.AutoMergeTargetBranch}", workspacePath, db, job, config);
-                        await RunProcessAsync("git", $"merge {job.SourceBranch}", workspacePath, db, job, config);
                         
-                        await RunProcessAsync("git", "push origin", workspacePath, db, job, config);
+                        int mergeCode = await RunProcessAsync("git", $"merge --no-edit {job.SourceBranch}", workspacePath, db, job, config);
                         
-                        _state.Step3.Status = "DONE";
-                        _state.Step3.ProgressPercent = 100;
-                        _state.Step3.DetailText = "Merge complete";
+                        if (mergeCode == 0)
+                        {
+                            await RunProcessAsync("git", "push origin", workspacePath, db, job, config);
+                            
+                            _state.Step3.Status = "DONE";
+                            _state.Step3.ProgressPercent = 100;
+                            _state.Step3.DetailText = "Merge complete";
+                        }
+                        else
+                        {
+                            _state.Step3.Status = "FAILED";
+                            _state.Step3.ProgressPercent = 100;
+                            _state.Step3.DetailText = "Merge conflict - please merge manually";
+                            await RunProcessAsync("git", "merge --abort", workspacePath, db, job, config);
+                        }
                     }
                     
                     job.Status = "Success";

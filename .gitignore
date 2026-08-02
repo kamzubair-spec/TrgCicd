@@ -118,3 +118,8 @@ x86/
 # SQLite temporary files (preventing push to GitHub)
 *.db-shm
 *.db-wal
+
+# Custom ignores
+testclone/
+*.json
+!appsettings*.json

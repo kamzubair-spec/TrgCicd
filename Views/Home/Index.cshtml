@@ -1,6 +1,20 @@
 @{
     ViewData["Title"] = "Dashboard";
+    
+    string GetSandboxName(string instanceUrl)
+    {
+        if (string.IsNullOrEmpty(instanceUrl)) return "";
+        try {
+            var host = new Uri(instanceUrl.StartsWith("http") ? instanceUrl : "https://" + instanceUrl).Host;
+            if (host.Contains("--")) return host.Split("--")[1].Split('.')[0].ToUpper();
+        } catch {}
+        return instanceUrl;
+    }
 }
+
+<style>
+    @@keyframes spin { 100% { transform: rotate(360deg); } }
+</style>
 
 <div class="header">
     <div class="title">
@@ -23,9 +37,18 @@
     <tbody>
         @foreach(var pipeline in ViewBag.Pipelines)
         {
+            bool isRunning = ViewBag.RunningPipelines != null && ((List<int>)ViewBag.RunningPipelines).Contains(pipeline.Id);
             <tr>
-                <td><strong>@pipeline.Name</strong></td>
-                <td>@pipeline.Username</td>
+                <td>
+                    <strong>
+                        @if (isRunning)
+                        {
+                            <span style="display:inline-block; margin-right:5px; animation: spin 1s linear infinite;">⏳</span>
+                        }
+                        @pipeline.Name
+                    </strong>
+                </td>
+                <td>@(string.IsNullOrEmpty(pipeline.Username) ? GetSandboxName(pipeline.InstanceUrl) : pipeline.Username)</td>
                 <td><span class="branch-tag">@pipeline.SourceBranch</span></td>
                 <td>@pipeline.TestLevel</td>
                 <td style="white-space: nowrap; overflow: visible;">
@@ -34,7 +57,9 @@
                         <div class="dropdown-menu">
                             <form asp-controller="Home" asp-action="Deploy" method="post">
                                 <input type="hidden" name="orgConfigurationId" value="@pipeline.Id" />
-                                <button type="submit">▶ Run Deployment</button>
+                                <button type="submit" @(isRunning ? "disabled style=opacity:0.5;cursor:not-allowed;" : "")>
+                                    @(isRunning ? "⏳ Running..." : "▶ Run Deployment")
+                                </button>
                             </form>
                             <button type="button" onclick="alert('Stop functionality coming soon!');">⏹ Stop Deployment</button>
                             <a href="/Home/PipelineLogs/@pipeline.Id" style="color:var(--primary);">📋 View Logs / History</a>

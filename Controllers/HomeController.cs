@@ -23,8 +23,9 @@ public class HomeController : Controller
 
     public IActionResult Index()
     {
-        var recentJobs = _db.DeploymentJobs.OrderByDescending(j => j.StartTime).Take(10).ToList();
+        var recentJobs = _db.DeploymentJobs.OrderByDescending(j => j.StartTime).Take(20).ToList();
         ViewBag.Pipelines = _db.OrgConfigurations.ToList();
+        ViewBag.RunningPipelines = _db.DeploymentJobs.Where(j => j.Status == "Queued" || j.Status == "Running").Select(j => j.OrgConfigurationId).ToList();
         return View(recentJobs);
     }
 
@@ -43,6 +44,19 @@ public class HomeController : Controller
         };
         _db.DeploymentJobs.Add(job);
         await _db.SaveChangesAsync();
+
+        // Keep only the latest 20 logs for this pipeline
+        var oldJobs = _db.DeploymentJobs
+            .Where(j => j.OrgConfigurationId == orgConfigurationId)
+            .OrderByDescending(j => j.StartTime)
+            .Skip(20)
+            .ToList();
+            
+        if (oldJobs.Any())
+        {
+            _db.DeploymentJobs.RemoveRange(oldJobs);
+            await _db.SaveChangesAsync();
+        }
 
         BackgroundJob.Enqueue<SalesforceDeploymentService>(service => service.ExecuteDeploymentJobAsync(job.Id));
 

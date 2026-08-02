@@ -85,6 +85,8 @@
             <div>
                 <span class="step-name" id="step2-title">STEP 2: Deploying to Salesforce</span>
                 <span class="step-detail" id="step2-detail"></span>
+                <button id="view-live-logs-summary-btn" style="display:none; margin-left:15px; padding:4px 10px; background-color:#374151; color:#e5e7eb; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="showLiveLogsSummary()">Live Logs Summary</button>
+                <button id="view-live-logs-btn" style="display:none; margin-left:10px; padding:4px 10px; background-color:#374151; color:#e5e7eb; border:none; border-radius:4px; font-size:0.8rem; cursor:pointer;" onclick="showLiveLogs()">Live Logs Detailed</button>
             </div>
             <div class="step-pill" id="step2-pill">PENDING</div>
         </div>
@@ -105,6 +107,28 @@
     <div class="deploy-title" id="deploy-finished" style="display: none; margin-top: 30px;">Deployment Finished</div>
     
     <div class="legacy-log" id="legacy-log"></div>
+</div>
+
+<div id="live-logs-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#1e2127; border:1px solid #374151; border-radius:8px; width:80%; max-width:800px; max-height:80vh; display:flex; flex-direction:column;">
+        <div style="padding:15px 20px; border-bottom:1px solid #374151; display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:1.1rem; color:#e5e7eb;">Live Deployment Logs</h3>
+            <button onclick="hideLiveLogs()" style="background:transparent; border:none; color:#9ca3af; font-size:1.5rem; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+        <div id="live-logs-content" style="padding:15px 20px; overflow-y:auto; flex:1; font-family:monospace; font-size:0.85rem; color:#a8b2c1; white-space:pre-wrap;">
+        </div>
+    </div>
+</div>
+
+<div id="live-logs-summary-modal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#1e2127; border:1px solid #374151; border-radius:8px; width:80%; max-width:800px; max-height:80vh; display:flex; flex-direction:column;">
+        <div style="padding:15px 20px; border-bottom:1px solid #374151; display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:1.1rem; color:#e5e7eb;">Live Deployment Logs (Summary)</h3>
+            <button onclick="hideLiveLogsSummary()" style="background:transparent; border:none; color:#9ca3af; font-size:1.5rem; cursor:pointer; line-height:1;">&times;</button>
+        </div>
+        <div id="live-logs-summary-content" style="padding:15px 20px; overflow-y:auto; flex:1; font-family:monospace; font-size:0.85rem; color:#a8b2c1; white-space:pre-wrap;">
+        </div>
+    </div>
 </div>
 
 <script>
@@ -150,6 +174,16 @@
             }
         });
         
+        if (state.ComponentLogs && state.ComponentLogs.length > 0) {
+            document.getElementById('view-live-logs-btn').style.display = 'inline-block';
+            document.getElementById('live-logs-content').innerText = state.ComponentLogs.join('\n');
+        }
+
+        if (state.ComponentSummaryLogs && state.ComponentSummaryLogs.length > 0) {
+            document.getElementById('view-live-logs-summary-btn').style.display = 'inline-block';
+            document.getElementById('live-logs-summary-content').innerText = state.ComponentSummaryLogs.join('\n');
+        }
+
         if (state.Finished) {
             const finishedEl = document.getElementById('deploy-finished');
             finishedEl.style.display = 'block';
@@ -166,6 +200,19 @@
         } catch(e) { 
             return rawData;
         }
+    }
+
+    function showLiveLogs() {
+        document.getElementById('live-logs-modal').style.display = 'flex';
+    }
+    function hideLiveLogs() {
+        document.getElementById('live-logs-modal').style.display = 'none';
+    }
+    function showLiveLogsSummary() {
+        document.getElementById('live-logs-summary-modal').style.display = 'flex';
+    }
+    function hideLiveLogsSummary() {
+        document.getElementById('live-logs-summary-modal').style.display = 'none';
     }
 
     const initialDataElement = document.getElementById('raw-json-data');
