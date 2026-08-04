@@ -1,4 +1,6 @@
 using System;
+using System.IO;
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
@@ -51,6 +53,21 @@ namespace CICDTrg.Services
         {
             var model = Environment.GetEnvironmentVariable("DEEPSEEK_FLASH_MODEL", EnvironmentVariableTarget.User) ?? "deepseek-chat";
 
+            var configPath = Path.Combine(Directory.GetCurrentDirectory(), "pr_review_config.json");
+            var config = new PrReviewConfig();
+            
+            if (File.Exists(configPath))
+            {
+                try
+                {
+                    var jsonContent = await File.ReadAllTextAsync(configPath);
+                    config = JsonSerializer.Deserialize<PrReviewConfig>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? config;
+                }
+                catch { /* fallback to default */ }
+            }
+
+            string systemContent = $"You are a {config.Role}. {config.Prompt}\n\nSkills & Focus Areas:\n- " + string.Join("\n- ", config.Skills);
+
             var requestBody = new
             {
                 model = model,
@@ -58,11 +75,11 @@ namespace CICDTrg.Services
                 {
                     new { 
                         role = "system", 
-                        content = "You are a Senior Salesforce Architect. I will provide a Pull Request Git diff. Provide a highly actionable, concise code review. Highlight anti-patterns, SOQL/DML in loops, missing test coverage, or security flaws. Group feedback logically. If it is good, approve it." 
+                        content = systemContent 
                     },
                     new { role = "user", content = $"PR Diff:\n{gitDiff}" }
                 },
-                temperature = 0.2
+                temperature = config.Temperature
             };
 
             var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
@@ -79,5 +96,18 @@ namespace CICDTrg.Services
                 throw new Exception($"DeepSeek API Failed: {ex.Message}");
             }
         }
+    }
+
+    public class PrReviewConfig
+    {
+        public string Role { get; set; } = "Senior Salesforce Architect";
+        public string Prompt { get; set; } = "I will provide a Pull Request Git diff. Provide a highly actionable, concise code review. Group feedback logically. If it is good, approve it.";
+        public List<string> Skills { get; set; } = new List<string> {
+            "Highlight anti-patterns",
+            "Identify SOQL/DML in loops",
+            "Check for missing test coverage",
+            "Find security flaws"
+        };
+        public double Temperature { get; set; } = 0.2;
     }
 }

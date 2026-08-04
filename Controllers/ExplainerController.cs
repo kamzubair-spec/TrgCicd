@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Linq;
+using Microsoft.Extensions.Caching.Memory;
 using CICDTrg.Services;
 
 namespace CICDTrg.Controllers 
@@ -12,13 +15,15 @@ namespace CICDTrg.Controllers
         private readonly DeepSeekExplainerService _aiService;
 
         private readonly BitbucketService _bitbucketService;
+        private readonly IMemoryCache _cache;
 
-        public ExplainerController(JiraSprintService jiraService, GitService gitService, DeepSeekExplainerService aiService, BitbucketService bitbucketService)
+        public ExplainerController(JiraSprintService jiraService, GitService gitService, DeepSeekExplainerService aiService, BitbucketService bitbucketService, IMemoryCache cache)
         {
             _jiraService = jiraService;
             _gitService = gitService;
             _aiService = aiService;
             _bitbucketService = bitbucketService;
+            _cache = cache;
         }
 
         [HttpGet]
@@ -33,18 +38,47 @@ namespace CICDTrg.Controllers
             return View();
         }
 
+        [HttpGet]
         [HttpPost]
-        public async Task<IActionResult> ListPRs(string sprintName, string workspace = "frgphoenix", string repoSlug = "phoenix")
+        public async Task<IActionResult> ListPRs(string sprintName, string workspace = "frgphoenix", string repoSlug = "phoenix", int page = 1, string status = "ALL", bool refresh = false)
         {
             try
             {
-                var sprintInfo = await _jiraService.GetSprintDatesAsync(sprintName);
-                DateTime? targetEndDate = sprintInfo.State.Equals("active", StringComparison.OrdinalIgnoreCase) ? null : sprintInfo.EndDate;
-
-                var prs = await _bitbucketService.GetPullRequestsAsync(workspace, repoSlug, sprintInfo.StartDate, targetEndDate);
+                string cacheKey = $"prs_{workspace}_{repoSlug}_{sprintName}";
                 
+                if (refresh)
+                {
+                    _cache.Remove(cacheKey);
+                }
+
+                if (!_cache.TryGetValue(cacheKey, out List<PRModel> allPrs))
+                {
+                    var sprintInfo = await _jiraService.GetSprintDatesAsync(sprintName);
+                    DateTime? targetEndDate = sprintInfo.State.Equals("active", StringComparison.OrdinalIgnoreCase) ? null : sprintInfo.EndDate;
+
+                    allPrs = await _bitbucketService.GetPullRequestsAsync(workspace, repoSlug, sprintInfo.StartDate, targetEndDate);
+                    
+                    var cacheOptions = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
+                    _cache.Set(cacheKey, allPrs, cacheOptions);
+                }
+
+                var filteredPrs = allPrs;
+                if (!string.IsNullOrEmpty(status) && status != "ALL")
+                {
+                    filteredPrs = allPrs.Where(pr => pr.State.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
+                }
+                
+                int pageSize = 20;
+                var pagedPrs = filteredPrs.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
                 ViewBag.SprintName = sprintName;
-                return View("PRList", prs);
+                ViewBag.CurrentPage = page;
+                ViewBag.TotalPages = (int)Math.Ceiling((double)filteredPrs.Count / pageSize);
+                ViewBag.Workspace = workspace;
+                ViewBag.RepoSlug = repoSlug;
+                ViewBag.CurrentStatus = status;
+                
+                return View("PRList", pagedPrs);
             }
             catch (Exception ex)
             {
@@ -61,6 +95,7 @@ namespace CICDTrg.Controllers
                 string review = await _aiService.ReviewPRAsync(diff);
                 
                 ViewBag.PRId = prId;
+                ViewBag.Diff = diff;
                 return View("PRReviewResult", review);
             }
             catch (Exception ex)

@@ -9,7 +9,7 @@
     <div class="card-body">
         <p>Select a Sprint and Branch to see all related Pull Requests. You can then trigger an AI Architect Review for any PR instantly!</p>
         
-        <form asp-action="ListPRs" method="post" onsubmit="document.getElementById('findPrsBtn').disabled = true; document.getElementById('findPrsBtn').innerHTML = '<span class=\'custom-spinner\'></span> Fetching PRs...';">
+        <form asp-action="ListPRs" method="get" onsubmit="document.getElementById('findPrsBtn').disabled = true; document.getElementById('findPrsBtn').innerHTML = '<span class=\'custom-spinner\'></span> Fetching PRs...';">
             <div class="form-group" style="margin-bottom: 15px;">
                 <label for="sprintName" style="display:block; margin-bottom:5px; font-weight:600;">Jira Sprint Name</label>
                 <input type="text" id="sprintName" name="sprintName" class="form-control" required style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" value="Phoenix_95.0_Sprint 1" />

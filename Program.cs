@@ -40,6 +40,8 @@ builder.Services.AddHttpClient<JiraSprintService>();
 builder.Services.AddHttpClient<DeepSeekExplainerService>();
 builder.Services.AddHttpClient<BitbucketService>();
 builder.Services.AddScoped<GitService>();
+builder.Services.AddMemoryCache(); // Added for fast pagination caching
+
 
 var app = builder.Build();
 

@@ -9,8 +9,162 @@
         <button onclick="history.back()" class="btn btn-secondary" style="padding: 6px 12px; background-color: #f1f5f9; color: #334155; border: none; border-radius: 4px; font-size: 14px; font-weight: 500; cursor:pointer;">&larr; Back to List</button>
     </div>
     <div class="card-body">
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; white-space: pre-wrap; font-family: 'Inter', sans-serif; line-height: 1.6; color: #334155;">
+        <div style="display: flex; gap: 20px;">
+            <!-- Left Column: AI Review -->
+            <div style="flex: 4; min-width: 0;">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: #475569; font-family: 'Inter', sans-serif;">AI Review</h4>
+                <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; white-space: pre-wrap; font-family: 'Inter', sans-serif; line-height: 1.6; color: #334155; height: 75vh; overflow-y: auto;">
 @Model
+                </div>
+            </div>
+            
+            <!-- Right Column: Code Diff -->
+            <div style="flex: 6; min-width: 0; display: flex; flex-direction: column;">
+                <h4 style="margin-top: 0; margin-bottom: 15px; color: #475569; font-family: 'Inter', sans-serif;">Code Changes</h4>
+                <div style="background-color: #1e293b; border: 1px solid #0f172a; border-radius: 8px; display: flex; height: 75vh; overflow: hidden;">
+                    
+                    <!-- File Tree Sidebar -->
+                    <div style="width: 260px; min-width: 260px; background-color: #0f172a; border-right: 1px solid #334155; overflow: auto; padding: 15px 10px;">
+                        <div style="color: #94a3b8; font-size: 12px; font-weight: 600; text-transform: uppercase; margin-bottom: 15px; padding-left: 5px;">Changed Files</div>
+                        <div id="diffFileTree" style="font-family: 'Inter', sans-serif; font-size: 13px;">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+
+                    <!-- File Diff Viewer -->
+                    <div id="diffViewer" style="flex: 1; padding: 20px; white-space: pre; font-family: 'Consolas', 'Monaco', monospace; font-size: 13px; line-height: 1.5; color: #f8fafc; overflow-x: auto; overflow-y: auto;">
+                        <div style="color: #64748b; font-style: italic; font-family: 'Inter', sans-serif;">Select a file from the tree to view its changes...</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+<script>
+    const diffData = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(ViewBag.Diff ?? ""));
+    
+    document.addEventListener("DOMContentLoaded", function() {
+        const files = [];
+        if (diffData) {
+            const parts = diffData.split(/^diff --git /m);
+            for(let p of parts) {
+                if(!p.trim()) continue;
+                const diffBlock = "diff --git " + p;
+                
+                let firstLine = p.split('\n')[0];
+                let fileName = "Unknown";
+                
+                if (firstLine.startsWith('"a/')) {
+                    fileName = firstLine.split('" "')[0].substring(3);
+                } else if (firstLine.startsWith('a/')) {
+                    let fp = firstLine.split(' b/');
+                    if(fp.length > 0) fileName = fp[0].substring(2);
+                }
+
+                files.push({ name: fileName, diff: diffBlock });
+            }
+        }
+
+        const treeEl = document.getElementById('diffFileTree');
+        const viewerEl = document.getElementById('diffViewer');
+
+        if (files.length === 0) {
+            treeEl.innerHTML = "<div style='color: #64748b; padding-left: 5px;'>No files changed.</div>";
+            return;
+        }
+
+        // Build Tree Object
+        const tree = {};
+        files.forEach((file, index) => {
+            const parts = file.name.split('/');
+            let current = tree;
+            parts.forEach((part, i) => {
+                if (i === parts.length - 1) {
+                    current[part] = { _fileIndex: index };
+                } else {
+                    current[part] = current[part] || {};
+                    current = current[part];
+                }
+            });
+        });
+
+        // Render Tree HTML
+        function buildTreeHTML(node, isRoot = false) {
+            let html = `<ul style="list-style: none; padding-left: ${isRoot ? '0' : '12px'}; margin: 0; ${isRoot ? '' : 'border-left: 1px solid #334155; margin-left: 6px;'}">`;
+            
+            // Sort folders first, then files
+            const keys = Object.keys(node).filter(k => k !== '_fileIndex').sort((a, b) => {
+                const aIsFile = node[a].hasOwnProperty('_fileIndex');
+                const bIsFile = node[b].hasOwnProperty('_fileIndex');
+                if (aIsFile === bIsFile) return a.localeCompare(b);
+                return aIsFile ? 1 : -1;
+            });
+
+            for (let key of keys) {
+                const isFile = node[key].hasOwnProperty('_fileIndex');
+                
+                if (isFile) {
+                    const fileIndex = node[key]._fileIndex;
+                    html += `
+                        <li style="margin: 2px 0;">
+                            <div class="file-node" data-index="${fileIndex}" onmouseover="if(this.dataset.active !== 'true') this.style.backgroundColor='rgba(255,255,255,0.05)'" onmouseout="if(this.dataset.active !== 'true') this.style.backgroundColor='transparent'" style="padding: 6px 8px; cursor: pointer; color: #cbd5e1; border-radius: 4px; display: flex; align-items: center; gap: 6px; white-space: nowrap; transition: background 0.1s; width: max-content; min-width: 100%; box-sizing: border-box;" title="${key}">
+                                <span style="font-size: 13px; opacity: 0.8;">📄</span> ${key}
+                            </div>
+                        </li>
+                    `;
+                } else {
+                    html += `
+                        <li style="margin: 4px 0;">
+                            <div style="padding: 4px 8px; color: #94a3b8; display: flex; align-items: center; gap: 6px; font-weight: 500;">
+                                <span style="font-size: 13px; opacity: 0.8;">📂</span> ${key}
+                            </div>
+                            ${buildTreeHTML(node[key])}
+                        </li>
+                    `;
+                }
+            }
+            html += '</ul>';
+            return html;
+        }
+
+        treeEl.innerHTML = buildTreeHTML(tree, true);
+
+        // Add Click Handlers
+        const fileNodes = document.querySelectorAll('.file-node');
+        fileNodes.forEach(node => {
+            node.addEventListener('click', function() {
+                // Reset all
+                fileNodes.forEach(n => {
+                    n.style.backgroundColor = 'transparent';
+                    n.style.color = '#cbd5e1';
+                    n.dataset.active = 'false';
+                });
+                
+                // Set active
+                this.style.backgroundColor = '#1e293b';
+                this.style.color = '#f8fafc';
+                this.dataset.active = 'true';
+                
+                // Render Diff
+                const fileIndex = parseInt(this.dataset.index);
+                const file = files[fileIndex];
+                
+                let htmlDiff = file.diff.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                htmlDiff = htmlDiff.split(/\r?\n/).map(line => {
+                    if (line.startsWith('+')) return `<div style="background-color: rgba(34, 197, 94, 0.15); color: #4ade80; padding: 0 4px;">${line}</div>`;
+                    if (line.startsWith('-')) return `<div style="background-color: rgba(239, 68, 68, 0.15); color: #f87171; padding: 0 4px;">${line}</div>`;
+                    if (line.startsWith('@@')) return `<div style="color: #60a5fa; margin-top: 10px; margin-bottom: 5px;">${line}</div>`;
+                    return `<div style="padding: 0 4px;">${line}</div>`;
+                }).join('');
+
+                viewerEl.innerHTML = `<div style="display: inline-block; min-width: 100%;">${htmlDiff}</div>`;
+            });
+        });
+
+        // Click first file
+        if (fileNodes.length > 0) {
+            fileNodes[0].click();
+        }
+    });
+</script>
