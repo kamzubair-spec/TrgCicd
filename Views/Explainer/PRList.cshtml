@@ -1,0 +1,57 @@
+@model IEnumerable<CICDTrg.Services.PRModel>
+@{
+    ViewData["Title"] = "Pull Requests";
+}
+
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin:0;">Pull Requests for @ViewBag.SprintName</h3>
+        <a href="/Explainer/PRReviewer" class="btn btn-secondary" style="padding: 6px 12px; background-color: #f1f5f9; color: #334155; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500;">&larr; Back</a>
+    </div>
+    <div class="card-body">
+        
+
+        
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: 'Inter', sans-serif;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e2e8f0;">
+                    <th style="padding: 12px; color: #475569;">PR #</th>
+                    <th style="padding: 12px; color: #475569;">Title</th>
+                    <th style="padding: 12px; color: #475569;">Source</th>
+                    <th style="padding: 12px; color: #475569;">Target</th>
+                    <th style="padding: 12px; color: #475569;">Author</th>
+                    <th style="padding: 12px; color: #475569;">Status</th>
+                    <th style="padding: 12px; color: #475569;">Date</th>
+                    <th style="padding: 12px; color: #475569;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var pr in Model)
+                {
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 12px; font-weight: 600;">#@pr.Id</td>
+                        <td style="padding: 12px;">@pr.Title</td>
+                        <td style="padding: 12px;"><span style="font-family: monospace; background: transparent; padding: 2px 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">@pr.SourceBranch</span></td>
+                        <td style="padding: 12px;"><span style="font-family: monospace; background: transparent; padding: 2px 6px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 12px;">@pr.TargetBranch</span></td>
+                        <td style="padding: 12px;">@pr.Author</td>
+                        <td style="padding: 12px;">
+                            @if (pr.State == "MERGED") { <span style="background: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight:600;">@pr.State</span> }
+                            else if (pr.State == "OPEN") { <span style="background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight:600;">@pr.State</span> }
+                            else { <span style="background: #f1f5f9; color: #475569; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight:600;">@pr.State</span> }
+                        </td>
+                        <td style="padding: 12px; color: #64748b; font-size: 13px;">@pr.CreatedOn.ToString("MMM dd, yyyy")</td>
+                        <td style="padding: 12px;">
+                            <a href="/Explainer/ReviewPR?prId=@pr.Id" onclick="this.style.pointerEvents='none'; this.innerHTML='<span class=\'custom-spinner\'></span> AI Reviewing...';" style="display:inline-block; padding: 6px 12px; background-color: var(--primary); color: white; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: 500;">✨ Review PR</a>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="8" style="padding: 20px; text-align: center; color: #94a3b8;">No pull requests found in the selected timeframe.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>

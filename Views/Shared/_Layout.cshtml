@@ -6,6 +6,22 @@
     <title>@ViewData["Title"] - DeployHub</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        .custom-spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            vertical-align: text-bottom;
+            margin-right: 8px;
+        }
+        @@keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body>
     <div class="sidebar">
@@ -15,6 +31,8 @@
         </div>
         <a href="/" class="nav-item">Dashboard</a>
         <a href="/OrgConfiguration" class="nav-item">Pipeline Configurations</a>
+        <a href="/Explainer" class="nav-item">Change Explainer</a>
+        <a href="/Explainer/PRReviewer" class="nav-item">AI PR Reviewer</a>
         <div style="flex:1"></div>
         <a href="/Settings" class="nav-item">Settings</a>
         <a href="/Account/Logout" class="nav-item" style="color: var(--danger); margin-top: 10px;">Logout (@User.Identity?.Name)</a>

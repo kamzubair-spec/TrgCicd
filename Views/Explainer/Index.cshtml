@@ -1,0 +1,33 @@
+@{
+    ViewData["Title"] = "AI Change Explainer";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 style="margin:0;">AI Change Explainer</h3>
+    </div>
+    <div class="card-body">
+        <p>Enter the Jira Sprint Name and the target Git Branch to automatically generate a plain-English explanation of all the code changes made during this sprint.</p>
+        
+        <form asp-action="GenerateExplainer" method="post" onsubmit="document.getElementById('explainBtn').disabled = true; document.getElementById('explainBtn').innerHTML = '<span class=\'custom-spinner\'></span> AI is analyzing...';">
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label for="sprintName" style="display:block; margin-bottom:5px; font-weight:600;">Jira Sprint Name</label>
+                <input type="text" id="sprintName" name="sprintName" class="form-control" required style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" value="Phoenix_95.0_Sprint 1" />
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label for="branchName" style="display:block; margin-bottom:5px; font-weight:600;">Git Branch Name</label>
+                <input type="text" id="branchName" name="branchName" class="form-control" required style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" value="main" />
+            </div>
+
+            <div class="form-group" style="margin-bottom: 20px;">
+                <label for="repoPath" style="display:block; margin-bottom:5px; font-weight:600;">Local Repo Path</label>
+                <input type="text" id="repoPath" name="repoPath" class="form-control" required style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" value="C:\TRG Development\phoenix" />
+            </div>
+
+            <button type="submit" id="explainBtn" class="btn btn-primary" style="padding: 10px 20px; background-color: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                <span style="margin-right:5px;">✨</span> Generate AI Explanation
+            </button>
+        </form>
+    </div>
+</div>

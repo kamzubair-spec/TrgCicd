@@ -1,0 +1,18 @@
+@model string
+@{
+    ViewData["Title"] = "AI Explainer Result";
+}
+
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin:0;">Explanation for: @ViewBag.SprintName</h3>
+        <a href="/Explainer" class="btn btn-secondary" style="padding: 6px 12px; background-color: #f1f5f9; color: #334155; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500;">&larr; Back to Explainer</a>
+    </div>
+    <div class="card-body">
+        <p style="color: #64748b; margin-bottom: 20px;">Target Branch: <strong>@ViewBag.BranchName</strong></p>
+        
+        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; white-space: pre-wrap; font-family: 'Inter', sans-serif; line-height: 1.6; color: #334155;">
+@Model
+        </div>
+    </div>
+</div>

@@ -35,6 +35,12 @@ builder.Services.AddHangfireServer();
 // Register our custom deployment service
 builder.Services.AddScoped<SalesforceDeploymentService>();
 
+// Register Change Explainer Services
+builder.Services.AddHttpClient<JiraSprintService>();
+builder.Services.AddHttpClient<DeepSeekExplainerService>();
+builder.Services.AddHttpClient<BitbucketService>();
+builder.Services.AddScoped<GitService>();
+
 var app = builder.Build();
 
 // Create the SQLite DB on startup and seed admin user
