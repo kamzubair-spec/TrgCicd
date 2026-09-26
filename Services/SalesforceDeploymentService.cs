@@ -198,7 +198,25 @@ namespace CICDTrg.Services
 
                 if (authExitCode != 0) throw new Exception("Salesforce authentication failed.");
 
-                string deployCommand = "project deploy start --source-dir force-app --async --json";
+                bool hasDestructivePre = System.IO.File.Exists(System.IO.Path.Combine(workspacePath, "destructiveChangesPre.xml"));
+                bool hasDestructivePost = System.IO.File.Exists(System.IO.Path.Combine(workspacePath, "destructiveChangesPost.xml"));
+                
+                string deployCommand;
+                if (hasDestructivePre || hasDestructivePost)
+                {
+                    _state.Step2.DetailText = "Generating manifest for destructive changes...";
+                    await FlushStateAsync(db, job);
+                    
+                    int genExit = await RunProcessAsync("sf.cmd", "project generate manifest --source-dir force-app --name package.xml --output-dir manifest", workspacePath, db, job, config);
+                    if (genExit != 0) throw new Exception("Failed to generate manifest for deployment.");
+                    
+                    deployCommand = "project deploy start --manifest manifest/package.xml --async --json";
+                }
+                else
+                {
+                    deployCommand = "project deploy start --source-dir force-app --async --json";
+                }
+
                 if (!string.IsNullOrEmpty(config.Username)) deployCommand += $" --target-org {config.Username}";
                 if (config.IsCheckOnly) deployCommand += " --dry-run";
                 if (config.TestLevel != "NoTestRun")
@@ -209,6 +227,9 @@ namespace CICDTrg.Services
                         deployCommand += $" --tests {string.Join(" ", config.SpecifiedTestClasses.Split(','))}";
                     }
                 }
+
+                if (hasDestructivePre) deployCommand += " --pre-destructive-changes destructiveChangesPre.xml";
+                if (hasDestructivePost) deployCommand += " --post-destructive-changes destructiveChangesPost.xml";
 
                 _state.Step2.DetailText = "Submitting deployment...";
                 await FlushStateAsync(db, job);
@@ -459,7 +480,9 @@ namespace CICDTrg.Services
             {
                 string decryptedKey = _encryptionService.Decrypt(config.EncryptedSshKeyContent);
                 string tempSshKeyFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".pem");
-                File.WriteAllText(tempSshKeyFile, decryptedKey.Replace("\r\n", "\n").Trim() + "\n");
+                File.WriteAllText(tempSshKeyFile, decryptedKey.Replace("\\r\\n", "\\n").Trim() + "\\n");
+                var aclProc = Process.Start(new ProcessStartInfo { FileName = "icacls", Arguments = $"\"{tempSshKeyFile}\" /inheritance:r /grant:r \"{Environment.UserName}:(R)\"", CreateNoWindow = true, UseShellExecute = false });
+                aclProc?.WaitForExit();
                 processInfo.EnvironmentVariables["GIT_SSH_COMMAND"] = $"ssh -i \"{tempSshKeyFile.Replace("\\", "/")}\" -o StrictHostKeyChecking=no";
             }
 
@@ -530,7 +553,9 @@ namespace CICDTrg.Services
             {
                 string decryptedKey = _encryptionService.Decrypt(config.EncryptedSshKeyContent);
                 string tempSshKeyFile = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".pem");
-                File.WriteAllText(tempSshKeyFile, decryptedKey.Replace("\r\n", "\n").Trim() + "\n");
+                File.WriteAllText(tempSshKeyFile, decryptedKey.Replace("\\r\\n", "\\n").Trim() + "\\n");
+                var aclProc = Process.Start(new ProcessStartInfo { FileName = "icacls", Arguments = $"\"{tempSshKeyFile}\" /inheritance:r /grant:r \"{Environment.UserName}:(R)\"", CreateNoWindow = true, UseShellExecute = false });
+                aclProc?.WaitForExit();
                 processInfo.EnvironmentVariables["GIT_SSH_COMMAND"] = $"ssh -i \"{tempSshKeyFile.Replace("\\", "/")}\" -o StrictHostKeyChecking=no";
             }
             using var process = new Process { StartInfo = processInfo };

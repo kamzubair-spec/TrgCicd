@@ -28,7 +28,7 @@ namespace CICDTrg.Models
         
         // 4. Deployment Settings
         public bool IsCheckOnly { get; set; } = false;
-        public string TestLevel { get; set; } = "NoTestRun"; // NoTestRun, RunSpecifiedTests, RunLocalTests, RunAllTestsInOrg
+        public string TestLevel { get; set; } = "NoTestRun"; // NoTestRun, RunSpecifiedTests, RunLocalTests, RunAllTestsInOrg, RunRelevantTests
         public string? SpecifiedTestClasses { get; set; } 
     }
 }

@@ -59,5 +59,53 @@ namespace CICDTrg.Services
                 State: sprintObj.GetProperty("state").GetString() // "active" or "closed"
             );
         }
+        public async Task<(string Summary, string DescriptionHtml, string DescriptionRaw)> GetIssueDetailsAsync(string issueKey)
+        {
+            var baseUrl = Environment.GetEnvironmentVariable("JIRA_BASE_URL", EnvironmentVariableTarget.User);
+            
+            var res = await _httpClient.GetAsync($"{baseUrl}/rest/api/2/issue/{issueKey}?expand=renderedFields");
+            if (!res.IsSuccessStatusCode) return (null, null, null);
+            
+            var json = await res.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            
+            var summary = doc.RootElement.GetProperty("fields").TryGetProperty("summary", out var summaryProp) && summaryProp.ValueKind != JsonValueKind.Null ? summaryProp.GetString() : "";
+            
+            string descriptionHtml = "";
+            if (doc.RootElement.TryGetProperty("renderedFields", out var renderedFields) && renderedFields.TryGetProperty("description", out var descHtmlProp) && descHtmlProp.ValueKind != JsonValueKind.Null)
+            {
+                descriptionHtml = descHtmlProp.GetString();
+            }
+
+            string descriptionRaw = "";
+            if (doc.RootElement.GetProperty("fields").TryGetProperty("description", out var descRawProp) && descRawProp.ValueKind != JsonValueKind.Null)
+            {
+                descriptionRaw = descRawProp.GetString();
+            }
+
+            foreach (var acField in new[] { "customfield_10104", "customfield_10056" })
+            {
+                if (doc.RootElement.GetProperty("fields").TryGetProperty(acField, out var acRawProp) && acRawProp.ValueKind != JsonValueKind.Null)
+                {
+                    string acRaw = acRawProp.GetString();
+                    if (!string.IsNullOrWhiteSpace(acRaw))
+                    {
+                        descriptionRaw += $"\n\nAcceptance Criteria:\n{acRaw}";
+                        
+                        if (doc.RootElement.TryGetProperty("renderedFields", out var rf) && rf.TryGetProperty(acField, out var acHtmlProp) && acHtmlProp.ValueKind != JsonValueKind.Null)
+                        {
+                            descriptionHtml += $"<br/><h3>Acceptance Criteria</h3>{acHtmlProp.GetString()}";
+                        }
+                        else
+                        {
+                            descriptionHtml += $"<br/><h3>Acceptance Criteria</h3><div style='white-space: pre-wrap;'>{acRaw}</div>";
+                        }
+                        break; 
+                    }
+                }
+            }
+            
+            return (summary, descriptionHtml, descriptionRaw);
+        }
     }
 }

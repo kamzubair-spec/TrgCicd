@@ -1,0 +1,147 @@
+@model IEnumerable<CICDTrg.Services.BranchModel>
+@{
+    ViewData["Title"] = "Branches";
+}
+
+<div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <h3 style="margin:0;">Branches for @ViewBag.SprintName</h3>
+        <div>
+            <a href="/Explainer/ListBranches?sprintName=@ViewBag.SprintName&workspace=@ViewBag.Workspace&repoSlug=@ViewBag.RepoSlug&refresh=true" class="btn btn-secondary" onclick="this.style.pointerEvents='none'; this.innerHTML='<span class=\'custom-spinner\' style=\'border-color: #334155; border-top-color: transparent;\'></span> Refreshing...';" style="padding: 6px 12px; background-color: #e2e8f0; color: #334155; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500; margin-right: 8px; display: inline-flex; align-items: center; gap: 5px;">&#x21bb; Refresh Cache</a>
+            <a href="/Explainer/BranchReviewer" class="btn btn-secondary" style="padding: 6px 12px; background-color: #f1f5f9; color: #334155; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500;">&larr; Back</a>
+        </div>
+    </div>
+    <div class="card-body">
+        <div style="margin-bottom: 15px; display: flex; align-items: center;">
+            <form method="get" action="/Explainer/ListBranches" style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                <input type="hidden" name="sprintName" value="@ViewBag.SprintName" />
+                <input type="hidden" name="workspace" value="@ViewBag.Workspace" />
+                <input type="hidden" name="repoSlug" value="@ViewBag.RepoSlug" />
+                
+                <label for="branchFilter" style="font-family: 'Inter', sans-serif; font-size: 14px; color: #475569; font-weight: 500;">Filter by Branch:</label>
+                <input type="text" id="branchFilter" name="branchFilter" value="@ViewBag.BranchFilter" placeholder="Branch name..." style="padding: 6px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-family: 'Inter', sans-serif; font-size: 14px; color: #334155; background-color: white; width: 250px;" />
+                <button type="submit" class="btn btn-primary" style="padding: 6px 12px; background-color: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 500;">Filter</button>
+            </form>
+        </div>
+        <table style="width: 100%; border-collapse: collapse; text-align: left; font-family: 'Inter', sans-serif;">
+            <thead>
+                <tr style="border-bottom: 2px solid #e2e8f0;">
+                    <th style="padding: 12px; color: #475569; width: 35%;">Branch Name</th>
+                    <th style="padding: 12px; color: #475569;">Author</th>
+                    <th style="padding: 12px; color: #475569;">Last Commit Date</th>
+                    <th style="padding: 12px; color: #475569; width: 20%; min-width: 140px;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var branch in Model)
+                {
+                    <tr style="border-bottom: 1px solid #f1f5f9;">
+                        <td style="padding: 12px; font-weight: 600; font-size: 13px; color: white; word-break: break-all;">@branch.Name</td>
+                        <td style="padding: 12px; font-size: 13px; color: white;">@branch.Author</td>
+                        <td style="padding: 12px; font-size: 13px; color: white;">@branch.TargetDate.ToString("MMM dd, yyyy")</td>
+                        <td style="padding: 12px;">
+                            <a href="javascript:void(0);" onclick="startReview(this, '/Explainer/ReviewBranch?branchName=@Uri.EscapeDataString(branch.Name)&workspace=@ViewBag.Workspace&repoSlug=@ViewBag.RepoSlug')" style="display:inline-block; padding: 6px 12px; background-color: var(--primary); color: white; text-decoration: none; border-radius: 4px; font-size: 13px; font-weight: 500;">✨ Review Branch</a>
+                        </td>
+                    </tr>
+                }
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="4" style="padding: 20px; text-align: center; color: #94a3b8;">No branches found in the selected timeframe.</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        @if (ViewBag.TotalPages > 1)
+        {
+            <div style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center; font-family: 'Inter', sans-serif;">
+                <div style="color: #64748b; font-size: 14px;">
+                    Page <strong>@ViewBag.CurrentPage</strong> of <strong>@ViewBag.TotalPages</strong>
+                </div>
+                <div>
+                    @if (ViewBag.CurrentPage > 1)
+                    {
+                        <a href="/Explainer/ListBranches?sprintName=@ViewBag.SprintName&page=@(ViewBag.CurrentPage - 1)&workspace=@ViewBag.Workspace&repoSlug=@ViewBag.RepoSlug" class="btn btn-secondary" style="padding: 6px 12px; background-color: #f1f5f9; color: #334155; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500; margin-right: 8px;">Previous</a>
+                    }
+                    @if (ViewBag.CurrentPage < ViewBag.TotalPages)
+                    {
+                        <a href="/Explainer/ListBranches?sprintName=@ViewBag.SprintName&page=@(ViewBag.CurrentPage + 1)&workspace=@ViewBag.Workspace&repoSlug=@ViewBag.RepoSlug" class="btn btn-secondary" style="padding: 6px 12px; background-color: #f1f5f9; color: #334155; text-decoration: none; border-radius: 4px; font-size: 14px; font-weight: 500;">Next</a>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Review Progress Modal -->
+<div id="reviewProgressModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(15,23,42,0.7); z-index:9999; align-items:center; justify-content:center;">
+    <div style="background:white; padding:30px; border-radius:12px; width:450px; font-family:'Inter',sans-serif; box-shadow:0 10px 25px rgba(0,0,0,0.2);">
+        <h4 style="margin-top:0; color:#1e293b; font-size: 18px; margin-bottom: 20px;">✨ Generating AI Branch Review...</h4>
+        
+        <div id="step1" style="color:#334155; margin-top:15px; display:flex; align-items:center; gap:12px; font-size: 14px; font-weight: 500;">
+            <span class="custom-spinner" style="width:18px; height:18px; border-width:2px; border-color:#3b82f6; border-top-color:transparent;"></span>
+            <span>Fetching branch diff from repository...</span>
+        </div>
+        
+        <div id="step1b" style="color:#cbd5e1; margin-top:15px; display:flex; align-items:center; gap:12px; font-size: 14px; font-weight: 500;">
+            <span style="width:18px; height:18px; border-radius:50%; border:2px solid #cbd5e1; display:inline-block;"></span>
+            <span>Extracting Jira story context...</span>
+        </div>
+        
+        <div id="step2" style="color:#cbd5e1; margin-top:15px; display:flex; align-items:center; gap:12px; font-size: 14px; font-weight: 500;">
+            <span style="width:18px; height:18px; border-radius:50%; border:2px solid #cbd5e1; display:inline-block;"></span>
+            <span>Analyzing code structure...</span>
+        </div>
+        
+        <div id="step3" style="color:#cbd5e1; margin-top:15px; display:flex; align-items:center; gap:12px; font-size: 14px; font-weight: 500;">
+            <span style="width:18px; height:18px; border-radius:50%; border:2px solid #cbd5e1; display:inline-block;"></span>
+            <span>Applying Salesforce Architect rules...</span>
+        </div>
+        
+        <div id="step4" style="color:#cbd5e1; margin-top:15px; display:flex; align-items:center; gap:12px; font-size: 14px; font-weight: 500;">
+            <span style="width:18px; height:18px; border-radius:50%; border:2px solid #cbd5e1; display:inline-block;"></span>
+            <span>Formatting review output...</span>
+        </div>
+    </div>
+</div>
+
+<script>
+function startReview(btn, url) {
+    btn.style.pointerEvents = 'none';
+    btn.innerHTML = '<span class="custom-spinner"></span> Initializing...';
+
+    document.getElementById('reviewProgressModal').style.display = 'flex';
+    
+    const step1 = document.getElementById('step1');
+    const step1b = document.getElementById('step1b');
+    const step2 = document.getElementById('step2');
+    const step3 = document.getElementById('step3');
+    const step4 = document.getElementById('step4');
+
+    const checkIcon = `<svg style="width:20px;height:20px;color:#10b981;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>`;
+    const spinner = `<span class="custom-spinner" style="width:18px; height:18px; border-width:2px; border-color:#3b82f6; border-top-color:transparent;"></span>`;
+
+    setTimeout(() => {
+        step1.innerHTML = `${checkIcon} <span style="color:#10b981;">Code diff fetched</span>`;
+        step1b.innerHTML = `${spinner} <span style="color:#334155;">Extracting Jira story context...</span>`;
+    }, 1500);
+
+    setTimeout(() => {
+        step1b.innerHTML = `${checkIcon} <span style="color:#10b981;">Jira context extracted</span>`;
+        step2.innerHTML = `${spinner} <span style="color:#334155;">Analyzing code structure...</span>`;
+    }, 2500);
+
+    setTimeout(() => {
+        step2.innerHTML = `${checkIcon} <span style="color:#10b981;">Analysis complete</span>`;
+        step3.innerHTML = `${spinner} <span style="color:#334155;">Applying Salesforce Architect rules...</span>`;
+    }, 4500);
+
+    setTimeout(() => {
+        step3.innerHTML = `${checkIcon} <span style="color:#10b981;">Rules applied</span>`;
+        step4.innerHTML = `${spinner} <span style="color:#334155;">Formatting review output...</span>`;
+    }, 7000);
+
+    window.location.href = url;
+}
+</script>

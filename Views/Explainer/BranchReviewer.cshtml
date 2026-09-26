@@ -1,0 +1,23 @@
+@{
+    ViewData["Title"] = "AI Branch Reviewer";
+}
+
+<div class="card">
+    <div class="card-header">
+        <h3 style="margin:0;">AI Branch Reviewer</h3>
+    </div>
+    <div class="card-body">
+        <p>Select a Sprint to see all related branches. You can then trigger an AI Architect Review for any branch instantly!</p>
+        
+        <form asp-action="ListBranches" method="get" onsubmit="document.getElementById('findBranchesBtn').disabled = true; document.getElementById('findBranchesBtn').innerHTML = '<span class=\'custom-spinner\'></span> Fetching Branches...';">
+            <div class="form-group" style="margin-bottom: 15px;">
+                <label for="sprintName" style="display:block; margin-bottom:5px; font-weight:600;">Jira Sprint Name</label>
+                <input type="text" id="sprintName" name="sprintName" class="form-control" required style="width: 100%; max-width: 400px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;" value="Phoenix_95.0_Sprint 1" />
+            </div>
+            
+            <button type="submit" id="findBranchesBtn" class="btn btn-primary" style="padding: 10px 20px; background-color: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                <span style="margin-right:5px;">🔍</span> Find Branches
+            </button>
+        </form>
+    </div>
+</div>

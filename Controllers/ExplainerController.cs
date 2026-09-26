@@ -138,5 +138,96 @@ namespace CICDTrg.Controllers
                 return BadRequest($"Error generating explainer: {ex.Message}");
             }
         }
+        [HttpGet]
+        public IActionResult BranchReviewer()
+        {
+            return View();
+        }
+
+        [HttpGet]
+        [HttpPost]
+        public async Task<IActionResult> ListBranches(string sprintName, string workspace = "frgphoenix", string repoSlug = "phoenix", int page = 1, bool refresh = false, string branchFilter = "")
+        {
+            try
+            {
+                string cacheKey = $"branches_local_{workspace}_{repoSlug}_{sprintName}";
+                
+                if (refresh)
+                {
+                    _cache.Remove(cacheKey);
+                }
+
+                if (!_cache.TryGetValue(cacheKey, out List<BranchModel> allBranches))
+                {
+                    var sprintInfo = await _jiraService.GetSprintDatesAsync(sprintName);
+                    DateTime? targetEndDate = sprintInfo.State.Equals("active", StringComparison.OrdinalIgnoreCase) ? null : sprintInfo.EndDate;
+
+                    var fetchedBranches = _gitService.GetBranchesCreatedInSprint(@"C:\TRG Development\phoenix", sprintInfo.StartDate, targetEndDate);
+                    allBranches = fetchedBranches.Where(b => b.Name.Contains("PNX-", StringComparison.OrdinalIgnoreCase)).ToList();
+                    
+                    var cacheOptions = new MemoryCacheEntryOptions().SetAbsoluteExpiration(TimeSpan.FromMinutes(5));
+                    _cache.Set(cacheKey, allBranches, cacheOptions);
+                }
+
+                var filteredBranches = allBranches;
+                if (!string.IsNullOrWhiteSpace(branchFilter))
+                {
+                    filteredBranches = filteredBranches.Where(b => b.Name.Contains(branchFilter, StringComparison.OrdinalIgnoreCase)).ToList();
+                }
+
+                int pageSize = 20;
+                var pagedBranches = filteredBranches.Skip((page - 1) * pageSize).Take(pageSize).ToList();
+
+                ViewBag.SprintName = sprintName;
+                ViewBag.CurrentPage = page;
+                ViewBag.TotalPages = (int)Math.Ceiling((double)filteredBranches.Count / pageSize);
+                ViewBag.Workspace = workspace;
+                ViewBag.RepoSlug = repoSlug;
+                ViewBag.BranchFilter = branchFilter;
+                
+                return View("BranchList", pagedBranches);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error fetching branches: {ex.Message}");
+            }
+        }
+
+        [HttpGet]
+        public async Task<IActionResult> ReviewBranch(string branchName, string repoPath = @"C:\TRG Development\phoenix")
+        {
+            try
+            {
+                string diff = _gitService.GetFullBranchDiff(repoPath, branchName);
+                if (string.IsNullOrWhiteSpace(diff)) {
+                    diff = "No changes found in branch compared to origin/master.";
+                }
+
+                var pnxMatch = System.Text.RegularExpressions.Regex.Match(branchName, @"PNX-\d+", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (pnxMatch.Success)
+                {
+                    var jiraInfo = await _jiraService.GetIssueDetailsAsync(pnxMatch.Value);
+                    if (!string.IsNullOrEmpty(jiraInfo.Summary))
+                    {
+                        ViewBag.JiraKey = pnxMatch.Value;
+                        ViewBag.JiraSummary = jiraInfo.Summary;
+                        ViewBag.JiraHtml = jiraInfo.DescriptionHtml;
+                        
+                        // Prepend Jira context for AI
+                        diff = $"Jira Story: {pnxMatch.Value} - {jiraInfo.Summary}\nDescription:\n{jiraInfo.DescriptionRaw}\n\nCode Changes:\n{diff}";
+                    }
+                }
+
+                string review = await _aiService.ReviewPRAsync(diff);
+                
+                ViewBag.BranchName = branchName;
+                ViewBag.Diff = diff;
+                return View("PRReviewResult", review);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Error reviewing branch: {ex.Message}");
+            }
+        }
     }
 }

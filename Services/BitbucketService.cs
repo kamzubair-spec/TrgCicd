@@ -119,6 +119,65 @@ namespace CICDTrg.Services
                 throw new Exception(ex.Message);
             }
         }
+        public async Task<List<BranchModel>> GetBranchesAsync(string workspace, string repoSlug, DateTime startDate, DateTime? endDate)
+        {
+            var branches = new List<BranchModel>();
+            var url = $"https://api.bitbucket.org/2.0/repositories/{workspace}/{repoSlug}/refs/branches?pagelen=100&sort=-target.date";
+
+            while (!string.IsNullOrEmpty(url))
+            {
+                var response = await _httpClient.GetAsync(url);
+                response.EnsureSuccessStatusCode();
+
+                var json = await response.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(json);
+                
+                bool fetchedOlderThanStartDate = false;
+
+                foreach (var branch in doc.RootElement.GetProperty("values").EnumerateArray())
+                {
+                    var targetDate = branch.GetProperty("target").GetProperty("date").GetDateTime();
+                    var branchName = branch.GetProperty("name").GetString();
+                    
+                    if (targetDate < startDate)
+                    {
+                        fetchedOlderThanStartDate = true;
+                        continue;
+                    }
+
+                    if (!endDate.HasValue || targetDate <= endDate.Value)
+                    {
+                        var authorRaw = branch.GetProperty("target").GetProperty("author").GetProperty("raw").GetString();
+                        string authorName = authorRaw;
+                        if (authorRaw.Contains("<")) {
+                            authorName = authorRaw.Substring(0, authorRaw.IndexOf('<')).Trim();
+                        }
+
+                        branches.Add(new BranchModel {
+                            Name = branchName,
+                            TargetDate = targetDate,
+                            Author = authorName
+                        });
+                    }
+                }
+
+                if (fetchedOlderThanStartDate)
+                {
+                    break;
+                }
+
+                if (doc.RootElement.TryGetProperty("next", out var nextElement))
+                {
+                    url = nextElement.GetString();
+                }
+                else
+                {
+                    url = null;
+                }
+            }
+            
+            return branches;
+        }
     }
 
     public class PRModel
@@ -130,5 +189,12 @@ namespace CICDTrg.Services
         public string State { get; set; }
         public string Author { get; set; }
         public DateTime CreatedOn { get; set; }
+    }
+
+    public class BranchModel
+    {
+        public string Name { get; set; }
+        public DateTime TargetDate { get; set; }
+        public string Author { get; set; }
     }
 }

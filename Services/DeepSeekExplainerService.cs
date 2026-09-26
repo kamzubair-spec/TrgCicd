@@ -16,6 +16,7 @@ namespace CICDTrg.Services
         public DeepSeekExplainerService(HttpClient httpClient)
         {
             _httpClient = httpClient;
+            _httpClient.Timeout = TimeSpan.FromMinutes(5); // Increase timeout to 5 minutes
             
             var apiKey = Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY", EnvironmentVariableTarget.User);
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
